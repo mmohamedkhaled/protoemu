@@ -1,0 +1,27 @@
+# State machine: the delay-field timing guarantee, atomic instructions, FIFO
+# safety. The properties are at the end of src/pe_sm.v.
+#
+#   prove   unbounded proof by k-induction
+#   cover   shows the properties are reachable, so the proof is not vacuous
+
+[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 40
+
+[engines]
+smtbmc yices
+
+[script]
+read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v
+prep -top pe_sm
+
+[files]
+../src/pe_sm.v
+../src/pe_shift.v
+../src/pe_decoder.v

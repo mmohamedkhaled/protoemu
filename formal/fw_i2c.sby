@@ -1,0 +1,23 @@
+# firmware/i2c_master.pio on the real state machine, against any target and any
+# command sequence: no spurious START or STOP. Unbounded proof.
+
+[options]
+mode prove
+depth 16
+
+[engines]
+smtbmc yices
+
+[script]
+read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v i2c_master_sm.v fw_i2c.v
+# Keep the program ROM as logic: as a memory, induction would leave its contents free.
+hierarchy -top fw_i2c
+proc -norom
+prep -top fw_i2c
+
+[files]
+../src/pe_sm.v
+../src/pe_shift.v
+../src/pe_decoder.v
+gen/i2c_master_sm.v
+fw_i2c.v

@@ -1,0 +1,25 @@
+# firmware/uart_tx.pio on the real state machine: every byte comes out as a
+# correct 8N1 frame, 8 ticks per bit, whatever the FIFO does. Bounded: the
+# first 110 clock cycles, which is a whole frame and the start of the next.
+# About 3 minutes with yices.
+
+[options]
+mode bmc
+depth 110
+
+[engines]
+smtbmc yices
+
+[script]
+read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v uart_tx_sm.v fw_uart_tx.v
+# Keep the program ROM as logic: as a memory, induction would leave its contents free.
+hierarchy -top fw_uart_tx
+proc -norom
+prep -top fw_uart_tx
+
+[files]
+../src/pe_sm.v
+../src/pe_shift.v
+../src/pe_decoder.v
+gen/uart_tx_sm.v
+fw_uart_tx.v

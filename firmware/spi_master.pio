@@ -1,0 +1,19 @@
+; SPI master, mode 0 (CPOL = 0, CPHA = 0), 8 bits, most significant bit first.
+;
+; Tick rate: 4 x SCK.
+; Pins:      OUT_BASE = MOSI, IN_BASE = MISO, SIDE_BASE = SCK. The host drives
+;            chip select through the PIN_OUT register.
+; Host:      write each byte in bits 31:24 of a TX FIFO word; every byte sent
+;            returns one RX FIFO word with the received byte in bits 7:0.
+;
+; SCK stays low while the TX FIFO is empty, so bytes may arrive at any pace.
+
+.program spi_master
+.side_set 1
+.config autopull 1
+.config pull_thresh 8
+.config autopush 1
+.config push_thresh 8
+
+    out pins, 1      side 0 [1]   ; MOSI changes while SCK is low
+    in pins, 1       side 1 [1]   ; MISO is sampled as SCK rises

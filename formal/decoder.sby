@@ -1,0 +1,17 @@
+# Instruction decoder: legality, one-hot decode, the delay / side-set split.
+# The decoder is combinational, so one step covers every input.
+
+[options]
+mode prove
+depth 1
+
+[engines]
+smtbmc yices
+
+[script]
+read_verilog -formal pe_decoder.v decoder_props.v
+prep -top decoder_props
+
+[files]
+../src/pe_decoder.v
+decoder_props.v

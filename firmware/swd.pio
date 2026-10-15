@@ -1,0 +1,45 @@
+; Serial Wire Debug host: clocks bit strings out of and into SWDIO, handing the
+; line over between the two. Requests, turnarounds, ACK and parity are host
+; software, so the same program reads IDCODE or drives a whole debug session.
+;
+; Tick rate: 4 x SWCLK.
+; Pins:      SET_BASE = OUT_BASE = IN_BASE = SWDIO, SET_COUNT = 1,
+;            SIDE_BASE = SWCLK.
+; Host:      a command is one TX FIFO word; bits 4:0 are the address of the
+;            routine (`write` or `read`) and bits 9:5 the bit count minus one.
+;
+;              write          the next TX FIFO word holds the bits, first bit
+;                             in bit 0
+;              read           returns one RX FIFO word; for n bits the first
+;                             bit is in bit 32 - n
+;
+;            A turnaround is one extra bit read: read one more bit before the
+;            ACK and one more after the parity bit, and ignore them.
+
+.program swd
+.side_set 1 opt
+.config out_dir 1
+.config in_dir 1
+
+.wrap_target
+dispatch:
+    pull block
+    out pc, 5
+
+write:
+    out x, 5                      ; bit count - 1
+    pull block                    ; the bits
+    set pindirs, 1    side 0      ; drive SWDIO
+wloop:
+    out pins, 1       side 0 [1]  ; SWDIO changes while SWCLK is low
+    jmp x-- wloop     side 1 [1]  ; the target samples as SWCLK rises
+    jmp dispatch
+
+read:
+    out x, 5                      ; bit count - 1
+    set pindirs, 0    side 0      ; release SWDIO
+rloop:
+    in pins, 1        side 0 [1]  ; sample what the target drove on the last rise
+    jmp x-- rloop     side 1 [1]
+    push block
+.wrap

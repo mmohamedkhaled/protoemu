@@ -1,0 +1,23 @@
+; Protocol-aware trigger: fire the trigger pulse on the Nth rising edge of a
+; pin, for example the Nth clock of a target's SPI or SWD transfer. The pulse
+; appears on uo[5] after TRIG_DELAY more clock cycles and lasts TRIG_WIDTH + 1
+; cycles, which is what a voltage or clock glitcher needs as its input.
+;
+; Tick rate: the full clock (divider 1) for the lowest latency.
+; Pins:      IN_BASE = the pin to watch.
+; Host:      write N - 1 to the TX FIFO to arm. One RX FIFO word comes back
+;            when the trigger has fired.
+;
+; With divider 1 the pulse starts exactly 5 + TRIG_DELAY clock cycles after
+; the Nth rising edge reaches the pin.
+
+.program trigger_edge
+
+    pull block
+    mov x, osr
+edge:
+    wait 0 pin 0
+    wait 1 pin 0
+    jmp x-- edge
+    trig
+    push block                  ; tell the host

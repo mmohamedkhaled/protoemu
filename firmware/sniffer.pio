@@ -1,0 +1,29 @@
+; Passive bus sniffer / logic analyser: watch the pins and, on every change,
+; record a timestamp and the new pin state. The chip drives nothing, so it can
+; sit on a live bus and capture what another device is doing. The host then
+; reconstructs the waveform to the clock cycle.
+;
+; This is a protocol analyser built entirely from firmware: the hardware knows
+; nothing about "capturing" a bus.
+;
+; Tick rate: the full clock (divider 1) for single-cycle resolution.
+; Pins:      IN_BASE = 0, so the pin snapshot is the pins as they are.
+; Host:      reads pairs of RX FIFO words: first the timestamp in clock cycles
+;            since capture started, then the 8-bit pin snapshot in bits 7:0.
+;            A fast bus can overrun the 4-word FIFO; the host should keep up.
+
+.program sniffer
+
+    tstart                      ; the timestamp clock starts now
+loop:
+    mov x, pins                 ; the level we are holding at
+watch:
+    mov y, pins
+    jmp x!=y report             ; something changed
+    jmp watch
+report:
+    mov isr, timer              ; when
+    push block
+    mov isr, y                  ; what
+    push block
+    jmp loop

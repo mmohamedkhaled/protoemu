@@ -1,0 +1,80 @@
+# Every shipped program is a well-formed program on the real decoder: it never
+# executes an illegal instruction and never runs outside its own code, for any
+# input, FIFO state or clock divider. fw_gen.py bakes these two asserts in.
+#
+# The two command-dispatch programs (swd, i2c_master) use `out pc`, so a bad
+# command word could jump out of range: they are well-formed only when the host
+# sends valid commands, the assumption their own proofs (fw_i2c, fw_clock_data)
+# already make. They are covered there, not here.
+
+[tasks]
+uart_tx
+uart_rx
+spi_master
+jtag
+ws2812
+latency
+trigger_edge
+sniffer
+glitch_on_match
+armed_glitch_watch
+armed_glitch_fire
+
+[options]
+mode prove
+depth 8
+
+[engines]
+smtbmc yices
+
+[script]
+uart_tx: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v uart_tx_sm.v
+uart_rx: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v uart_rx_sm.v
+spi_master: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v spi_master_sm.v
+jtag: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v jtag_sm.v
+ws2812: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v ws2812_sm.v
+latency: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v latency_sm.v
+trigger_edge: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v trigger_edge_sm.v
+sniffer: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v sniffer_sm.v
+glitch_on_match: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v glitch_on_match_sm.v
+armed_glitch_watch: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v armed_glitch_watch_sm.v
+armed_glitch_fire: read_verilog -formal -DFORMAL pe_sm.v pe_shift.v pe_decoder.v armed_glitch_fire_sm.v
+uart_tx: hierarchy -top uart_tx_sm
+uart_rx: hierarchy -top uart_rx_sm
+spi_master: hierarchy -top spi_master_sm
+jtag: hierarchy -top jtag_sm
+ws2812: hierarchy -top ws2812_sm
+latency: hierarchy -top latency_sm
+trigger_edge: hierarchy -top trigger_edge_sm
+sniffer: hierarchy -top sniffer_sm
+glitch_on_match: hierarchy -top glitch_on_match_sm
+armed_glitch_watch: hierarchy -top armed_glitch_watch_sm
+armed_glitch_fire: hierarchy -top armed_glitch_fire_sm
+proc -norom
+uart_tx: prep -top uart_tx_sm
+uart_rx: prep -top uart_rx_sm
+spi_master: prep -top spi_master_sm
+jtag: prep -top jtag_sm
+ws2812: prep -top ws2812_sm
+latency: prep -top latency_sm
+trigger_edge: prep -top trigger_edge_sm
+sniffer: prep -top sniffer_sm
+glitch_on_match: prep -top glitch_on_match_sm
+armed_glitch_watch: prep -top armed_glitch_watch_sm
+armed_glitch_fire: prep -top armed_glitch_fire_sm
+
+[files]
+../src/pe_sm.v
+../src/pe_shift.v
+../src/pe_decoder.v
+gen/uart_tx_sm.v
+gen/uart_rx_sm.v
+gen/spi_master_sm.v
+gen/jtag_sm.v
+gen/ws2812_sm.v
+gen/latency_sm.v
+gen/trigger_edge_sm.v
+gen/sniffer_sm.v
+gen/glitch_on_match_sm.v
+gen/armed_glitch_watch_sm.v
+gen/armed_glitch_fire_sm.v

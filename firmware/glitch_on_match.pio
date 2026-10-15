@@ -1,0 +1,36 @@
+; Pattern-triggered glitch: watch a clocked bus, and the moment a chosen byte
+; appears on it, fire the trigger pulse. That is what a fault-injection setup
+; needs: glitch the target exactly when it processes a particular command, for
+; example the byte that unlocks its flash, rather than guessing at the timing.
+;
+; The chip is passive on the bus; it only drives the trigger output (uo[5]).
+;
+; Tick rate: the full clock (divider 1), so the trigger lands within a few
+;            clock cycles of the matching bit.
+; Pins:      SCK is gpio 0 (watched directly); IN_BASE = the data line.
+; Host:      write the target byte (in bits 7:0) to the TX FIFO once to arm.
+;            Each match pushes one RX FIFO word, and the trigger fires with the
+;            delay and width in the TRIG registers.
+;
+; Bits are sampled on the rising edge of SCK, most significant bit first, as in
+; SPI mode 0.
+
+.program glitch_on_match
+.define SCK 0
+.config in_dir 0
+
+    pull block
+    mov y, osr                  ; the byte to glitch on
+find:
+    mov isr, null               ; start a fresh byte
+    set x, 7
+getbit:
+    wait 0 gpio 0               ; SCK low
+    wait 1 gpio 0               ; SCK high: the bit is valid
+    in pins, 1
+    jmp x-- getbit
+    mov x, isr                  ; the eight bits just seen
+    jmp x!=y find               ; not the target: keep scanning
+    trig                        ; match: fire the glitch pulse
+    push block                  ; and tell the host
+    jmp find

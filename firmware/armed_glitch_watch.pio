@@ -1,0 +1,29 @@
+; Cross-state-machine glitch, part 1 of 2: the watcher.
+;
+; Watches a clocked bus for a chosen byte and raises shared flag 0 when it
+; appears. A second state machine running armed_glitch_fire.pio waits on that
+; flag and fires the trigger, so detection and action are split across the two
+; machines and can run at different rates. Companion to glitch_on_match.pio.
+;
+; Tick rate: the full clock (divider 1).
+; Pins:      SCK is gpio 0; IN_BASE = the data line.
+; Host:      write the target byte (bits 7:0) to the TX FIFO once to arm.
+
+.program armed_glitch_watch
+.define SCK 0
+.config in_dir 0
+
+    pull block
+    mov y, osr                  ; the byte to glitch on
+find:
+    mov isr, null
+    set x, 7
+getbit:
+    wait 0 gpio 0
+    wait 1 gpio 0
+    in pins, 1
+    jmp x-- getbit
+    mov x, isr
+    jmp x!=y find
+    irq 0                       ; matched: raise the shared flag
+    jmp find

@@ -1,0 +1,18 @@
+; Cross-state-machine glitch, part 2 of 2: the firer.
+;
+; Waits on shared flag 0, raised by armed_glitch_watch.pio on the other state
+; machine, then fires the trigger pulse and clears the flag. The host can
+; change the trigger delay and width, or stop and restart this machine, to
+; re-arm the reaction without disturbing the watcher.
+;
+; Tick rate: the full clock (divider 1).
+; Host:      each firing pushes one RX FIFO word as a notification.
+
+.program armed_glitch_fire
+
+armed:
+    wait 1 irq 0                ; the watcher's flag
+    trig                        ; fire the glitch pulse (TRIG_DELAY / TRIG_WIDTH)
+    irqclr 0                    ; consume the flag
+    push block                  ; tell the host it fired
+    jmp armed

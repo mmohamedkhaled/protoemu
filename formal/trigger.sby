@@ -1,0 +1,23 @@
+# Trigger pulse generator and cycle timer: the pulse starts exactly `delay`
+# clock cycles after it is fired and lasts exactly `width + 1` cycles, for
+# every delay and width. The properties are at the end of src/pe_trigger.v.
+
+[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 40
+
+[engines]
+smtbmc yices
+
+[script]
+read_verilog -formal -DFORMAL pe_trigger.v
+prep -top pe_trigger
+
+[files]
+../src/pe_trigger.v

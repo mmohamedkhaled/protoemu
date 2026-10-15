@@ -1,0 +1,15 @@
+; UART transmitter, 8N1, least significant bit first.
+;
+; Tick rate: 8 x baud.
+; Pins:      OUT_BASE = SIDE_BASE = TX. Set the pin as an output, level 1.
+; Host:      write one byte per TX FIFO word, in bits 7:0.
+
+.program uart_tx
+.side_set 1 opt
+.config out_dir 1
+
+    pull block       side 1 [7]   ; stop bit, or idle while the FIFO is empty
+    set x, 7         side 0 [7]   ; start bit
+bitloop:
+    out pins, 1                   ; data bit
+    jmp x-- bitloop         [6]

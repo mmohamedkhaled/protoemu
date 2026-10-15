@@ -1,0 +1,47 @@
+; I2C master with clock-stretching support.
+;
+; Tick rate: about 8 x SCL.
+; Pins:      SET_BASE = OUT_BASE = IN_BASE = SDA, SET_COUNT = 1,
+;            SIDE_BASE = SCL, and SCL must be the pin after SDA.
+;            Both pins: output, open drain (PIN_OD), level 1. External pull-ups.
+; Host:      each TX FIFO word is one command. Its top five bits are the
+;            address of the routine to run (`start`, `stop` or `byte`):
+;
+;              start          (repeated) START condition
+;              stop           STOP condition
+;              byte           bits 26:19 = byte to send, bit 18 = ACK bit to send
+;                             (send 0xFF to read; ACK bit 1 releases SDA so the
+;                             target can acknowledge, 0 acknowledges a read)
+;
+;            Every `byte` command returns one RX FIFO word: bits 8:1 are the
+;            byte seen on the bus and bit 0 is the ACK bit (0 = acknowledged).
+
+.program i2c_master
+.side_set 1 opt
+
+.wrap_target
+dispatch:
+    pull block
+    out pc, 5
+
+start:
+    set pins, 1       side 0 [1]  ; release SDA while SCL is low (repeated START)
+    wait 1 pin 1      side 1 [1]  ; release SCL and wait until it is high
+    set pins, 0              [1]  ; SDA falls while SCL is high
+    jmp dispatch      side 0 [1]
+
+stop:
+    set pins, 0       side 0 [1]  ; SDA low while SCL is low
+    wait 1 pin 1      side 1 [1]
+    set pins, 1              [1]  ; SDA rises while SCL is high
+    jmp dispatch
+
+byte:
+    set x, 8                      ; eight data bits and the ACK bit
+bitloop:
+    out pins, 1       side 0 [1]  ; next bit on SDA while SCL is low
+    wait 1 pin 1      side 1 [1]  ; SCL high; stalls while the target stretches it
+    in pins, 1               [1]  ; sample SDA
+    jmp x-- bitloop   side 0 [1]
+    push block
+.wrap

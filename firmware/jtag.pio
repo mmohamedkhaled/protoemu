@@ -1,0 +1,24 @@
+; JTAG bit pump: the host supplies TMS and TDI for every TCK cycle and gets
+; TDO back, so any TAP sequence (IDCODE, boundary scan, debug) is host software.
+;
+; Tick rate: 4 x TCK.
+; Pins:      OUT_BASE = TMS, TDI is the pin after TMS, IN_BASE = TDO,
+;            SIDE_BASE = TCK.
+; Host:      each TX FIFO word carries 16 TCK cycles, first cycle in the low
+;            bits: bit 2n = TMS and bit 2n+1 = TDI of cycle n.
+;            Every 16 cycles return one RX FIFO word with TDO of cycle n in
+;            bit 16 + n.
+;
+; TCK stops low while the TX FIFO is empty.
+
+.program jtag
+.side_set 1
+.config out_dir 1
+.config in_dir 1
+.config autopull 1
+.config pull_thresh 32
+.config autopush 1
+.config push_thresh 16
+
+    out pins, 2      side 0 [1]   ; TMS and TDI change while TCK is low
+    in pins, 1       side 1 [1]   ; TDO is sampled as TCK rises

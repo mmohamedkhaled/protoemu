@@ -1,0 +1,8 @@
+A square-wave generator on the single side-set pin (.side_set 1). The host
+sends one 32-bit half-period value H, in ticks, per edge through the TX FIFO.
+
+Pull H into OSR with `pull block`, move it to X with `mov x, osr`, then count X
+down to 0 with `jmp x--` while holding the side-set pin high; then pull the next
+H and count down while holding the pin low; repeat forever.
+
+Keep the program under 32 instructions and never execute an illegal instruction.

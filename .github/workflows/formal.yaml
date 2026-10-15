@@ -1,0 +1,15 @@
+name: formal
+on: [push, workflow_dispatch]
+jobs:
+  formal:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      # Provides sby, yosys and z3
+      - name: Install OSS CAD Suite
+        uses: YosysHQ/setup-oss-cad-suite@v3
+
+      - name: Run the proofs
+        run: make -C formal

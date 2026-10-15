@@ -1,0 +1,4 @@
+# Normalise line endings to LF in the repo so the Linux CI, shell scripts and
+# Makefiles are never handed CRLF, whatever platform a contributor is on.
+* text=auto eol=lf
+*.gtkw text eol=lf

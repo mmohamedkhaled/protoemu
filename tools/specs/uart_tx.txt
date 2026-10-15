@@ -1,0 +1,14 @@
+A UART transmitter, 8N1, least significant bit first, 8 ticks per bit.
+
+Use `.side_set 1 opt` and `.config out_dir 1`. The TX pin is both OUT_BASE and
+the side-set pin. The idle line and the stop bit are high; the start bit is low.
+
+Steps:
+- Pull a byte from the TX FIFO with `pull block` while holding the line high for
+  8 ticks (`side 1 [7]`) — this doubles as the stop bit and the idle state.
+- Emit the start bit: `set x, 7` while holding the line low for 8 ticks
+  (`side 0 [7]`).
+- A bitloop that does `out pins, 1` to put one data bit on the pin and
+  `jmp x-- bitloop`, arranged so each data bit lasts 8 ticks.
+
+Gate this one with the frame-correctness proof: `--proof fw_uart_tx`.

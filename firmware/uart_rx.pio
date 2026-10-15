@@ -1,0 +1,22 @@
+; UART receiver, 8N1, least significant bit first.
+;
+; Tick rate: 8 x baud.
+; Pins:      IN_BASE = JMP_PIN = RX.
+; Host:      each RX FIFO word holds one byte in bits 31:24.
+;
+; A byte whose stop bit is low (framing error or break) is dropped.
+
+.program uart_rx
+.config in_dir 1
+
+start:
+    wait 0 pin 0                  ; start bit
+    set x, 7               [10]   ; to the middle of the first data bit
+bitloop:
+    in pins, 1
+    jmp x-- bitloop        [6]
+    jmp pin good_stop             ; the stop bit must be high
+    wait 1 pin 0                  ; it is not: wait for the line to go idle
+    jmp start
+good_stop:
+    push noblock

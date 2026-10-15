@@ -1,0 +1,22 @@
+; Response-time measurement, to the clock cycle: raise a stimulus pin, and
+; report how many clock cycles pass before a response pin goes high. This is
+; the measurement behind a timing side channel, for example how long a target
+; takes to reject a password.
+;
+; Tick rate: the full clock (divider 1) for single-cycle resolution.
+; Pins:      SIDE_BASE = stimulus out, IN_BASE = response in.
+; Host:      write any TX FIFO word to take one measurement. It returns one RX
+;            FIFO word: the response time in clock cycles, plus a fixed offset
+;            of 4 for the input synchroniser and the two instructions.
+;
+; The count is in clock cycles, not ticks, whatever the divider.
+
+.program latency
+.side_set 1 opt
+
+    pull block                  ; wait for the host
+    tstart           side 1     ; stimulus edge and timer start on the same clock
+    wait 1 pin 0                ; the response
+    mov isr, timer
+    push block
+    wait 0 pin 0     side 0     ; drop the stimulus and wait for the response to clear
