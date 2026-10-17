@@ -15,6 +15,8 @@ What sets it apart is that it is built for hardware security work:
 - **A passive bus sniffer.** [`firmware/sniffer.pio`](firmware/sniffer.pio) timestamps every edge on the pins to the clock cycle: a logic analyser built from firmware, with the chip driving nothing.
 - **Split detection and action.** One state machine can watch a bus and raise a shared flag while the other waits on it and reacts, so the two run independently ([`firmware/armed_glitch_watch.pio`](firmware/armed_glitch_watch.pio) + [`firmware/armed_glitch_fire.pio`](firmware/armed_glitch_fire.pio)).
 
+These are instruments for fault-injection and side-channel **research on devices you own or are authorised to test**, the kind of bench work done with tools such as [ChipWhisperer](https://www.newae.com/chipwhisperer). The chip raises a trigger pin and measures timing on a bench; it is not a remote exploit and carries no protocol-specific attack logic.
+
 - [Datasheet](docs/info.md): pinout, register map, how to program it
 - [Instruction set](docs/isa.md)
 - [Timing, area and power](docs/efficiency.md)
@@ -118,11 +120,13 @@ tools/area.sh           # synthesis estimate of cell count and area
 |---|---|
 | RTL tests | 114 pass |
 | Formal | 21 proofs pass: decoder, state machine, trigger, 5 firmware correctness proofs, and well-formedness of 11 more programs; cover points reached |
-| Gate-level simulation | the 18 whole-chip tests pass on a Yosys netlist mapped to the IHP cells |
+| Gate-level simulation | the 18 whole-chip tests pass on the hardened netlist mapped to the IHP cells, locally and in the `gds` workflow's `gl_test` job (see the note below) |
 | Area estimate (Yosys, typical corner) | 12,273 cells (about half the 24K-cell budget), 1,762 flip-flops, 200,000 µm² of cells: 28% of the 0.72 mm² the competition post gives for 24 tiles |
 | Lint | Verilator `-Wall` clean |
 | Timing (OpenSTA, typical, pre-layout) | critical path ~20–23 ns, Fmax ~43–49 MHz; rated at 25 MHz for slow-corner margin (see [docs/efficiency.md](docs/efficiency.md)) |
-| GDS flow and sign-off timing | not run yet; it runs in the `gds` GitHub workflow |
+| GDS flow and sign-off | the `gds` workflow hardens the design through OpenLane and passes Tiny Tapeout precheck (~3.5 h per run) |
+
+**Gate-level simulation in CI.** The `gl_test` job runs the 18 whole-chip tests on the hardened netlist (the `tt_submission` artifact the `gds` job produces). The IHP sequential cell models drive their flip-flops through `specify` timing-check (`delayed_*`) nets that Icarus Verilog does not evaluate, so an unpatched functional run leaves every library cell at `X` — a limitation of this simulator with these models, not of the design or the netlist. [`test/patch_gl_models.py`](test/patch_gl_models.py) ties each timing-check net to its source signal, removing only the timing checks a zero-delay functional simulation never consults (no cell logic changes); with it the tests pass, in CI and locally. The RTL suite (layer 3, driven only through the chip's pins, so it runs unchanged on the netlist) and the SymbiYosys proofs remain the functional sign-off.
 
 ## Repository layout
 

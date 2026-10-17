@@ -25,22 +25,80 @@ jobs:
       - name: Run Tiny Tapeout Precheck
         uses: TinyTapeout/tt-gds-action/precheck@ihp-cmos5l
 
-  # Gate-level sim of the hardened netlist. Icarus Verilog cannot drive the
-  # IHP cell models' timing-check (`delayed_*`) nets, so stateful cells read X
-  # under it; this job is informational and does not gate the build. The RTL
-  # test suite and SymbiYosys proofs are the functional sign-off.
+  # Gate-level simulation of the hardened netlist (the `tt_submission` artifact
+  # the gds job produced). The IHP sequential cell models drive their flip-flops
+  # through `specify` timing-check nets that Icarus Verilog does not evaluate, so
+  # an unpatched functional run leaves every cell at X. test/patch_gl_models.py
+  # ties those timing-check nets to their source signals, removing only the
+  # timing checks that a zero-delay functional simulation never uses (no cell
+  # logic changes). With that patch the 18 whole-chip tests run on the mapped
+  # netlist exactly as they do locally. This reproduces the steps of
+  # TinyTapeout/tt-gds-action/gl_test with the patch inserted before the sim.
   gl_test:
     needs: gds
     runs-on: ubuntu-24.04
-    continue-on-error: true
+    env:
+      PDK_ROOT: /home/runner/pdk
+      # IHP-Open-PDK commit the TinyTapeout IHP flow pins (install_sg13cmos5l.sh).
+      PDK_COMMIT: 2bbec755dc67ca3db0261c3d6163e15735d66710
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: GL test
-        uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
+      - name: Download hardened netlist
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+
+      - name: Place gate-level netlist
+        run: cp tt_submission/*.v test/gate_level_netlist.v
+
+      - name: Install IHP cell models (pinned, verilog only)
+        run: |
+          mkdir -p "$PDK_ROOT"
+          cd "$PDK_ROOT"
+          git init -q
+          git remote add origin https://github.com/IHP-GmbH/IHP-Open-PDK.git
+          git config core.sparseCheckout true
+          printf '%s\n' \
+            'ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/' \
+            'ihp-sg13cmos5l/libs.ref/sg13cmos5l_io/verilog/' \
+            > .git/info/sparse-checkout
+          git fetch -q --depth 1 origin "$PDK_COMMIT"
+          git checkout -q FETCH_HEAD
+
+      - name: Patch cell models for zero-delay functional simulation
+        run: |
+          python3 test/patch_gl_models.py \
+            "$PDK_ROOT/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install cocotb and Icarus Verilog
+        run: |
+          pip install -r test/requirements.txt
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Gate-level tests
+        working-directory: test
+        run: |
+          make clean
+          GATES=yes make
+
+      - name: Check results
+        working-directory: test
+        run: |
+          test -f results.xml || { echo "no results.xml produced"; exit 1; }
+          if grep -q "failure" results.xml; then
+            echo "gate-level tests failed"; exit 1
+          fi
+          echo "gate-level tests passed"
 
   # Deploys the GDS viewer to GitHub Pages; needs Pages enabled (a public repo
   # or Pro). Informational, does not gate the build.
